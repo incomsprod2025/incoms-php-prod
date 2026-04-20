@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INCOMS — Gestion Comptable & Stock</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{--bg:#0a0e1a;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;--accent:#00d4aa;--accent2:#f97316;--accent3:#6366f1;--red:#ef4444;--green:#22c55e;--yellow:#eab308;--text:#e2e8f0;--muted:#64748b;--sidebar-w:240px;--sidebar-collapsed-w:64px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,170,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1000;background:var(--bg);}
+.login-box{background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:44px 38px;width:380px;box-shadow:0 0 60px rgba(0,212,170,.1);}
+.login-logo{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;letter-spacing:4px;color:var(--accent);text-align:center;margin-bottom:4px;}
+.login-sub{text-align:center;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:30px;text-transform:uppercase;}
+.login-role{display:flex;gap:8px;margin-bottom:22px;}
+.role-btn{flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:3px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .2s;}
+.role-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,170,.05);}
+.btn-primary{width:100%;padding:12px;background:var(--accent);border:none;border-radius:3px;color:var(--bg);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity .2s;}
+.btn-primary:hover{opacity:.85;}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.login-error{color:var(--red);font-size:11px;text-align:center;margin-top:12px;display:none;}
+#app{display:none;position:relative;z-index:1;}
+.header{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:56px;border-bottom:1px solid var(--border);background:rgba(10,14,26,.95);backdrop-filter:blur(10px);position:fixed;top:0;right:0;left:var(--sidebar-w);z-index:100;transition:left .3s ease;}
+body.sidebar-collapsed .header{left:var(--sidebar-collapsed-w);}
+.nav{display:flex;flex-direction:column;width:var(--sidebar-w);height:100vh;position:fixed;left:0;top:0;background:var(--surface);border-right:1px solid var(--border);z-index:200;transition:width .3s ease;overflow-x:hidden;}
+body.sidebar-collapsed .nav{width:var(--sidebar-collapsed-w);}
+.nav-logo{height:56px;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid var(--border);margin-bottom:12px;white-space:nowrap;}
+.nav-item{display:flex;align-items:center;gap:14px;padding:12px 24px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap;border-left:3px solid transparent;}
+.nav-item i{font-size:16px;width:20px;text-align:center;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,212,170,.05);}
+.nav-item.admin-only.active{color:var(--accent3);border-left-color:var(--accent3);background:rgba(99,102,241,0.05);}
+.nav-sub-menu{display:none;flex-direction:column;background:rgba(0,0,0,.1);margin-bottom:8px;}
+.nav-sub-menu.active{display:flex;}
+.nav-sub-item{display:flex;align-items:center;padding:10px 24px 10px 48px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap;border-left:3px solid transparent;}
+.nav-sub-item:hover{color:var(--text);background:rgba(255,255,255,.02);}
+.nav-sub-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,212,170,.03);}
+.nav-item span{transition:opacity .3s;}
+body.sidebar-collapsed .nav-item span{opacity:0;pointer-events:none;}
+.toggle-sidebar{background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:color .2s;}
+.toggle-sidebar:hover{color:var(--accent);}
+.page{display:none;padding:22px 28px;margin-top:56px;margin-left:var(--sidebar-w);transition:margin-left .3s ease;}
+body.sidebar-collapsed .page{margin-left:var(--sidebar-collapsed-w);}
+.page.active{display:block;}
+.section-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:1px;margin-bottom:4px;}
+.section-sub{font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:20px;}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:18px;position:relative;overflow:hidden;}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.stat-card.green::before{background:var(--green);}
+.stat-card.red::before{background:var(--red);}
+.stat-card.blue::before{background:var(--accent3);}
+.stat-card.orange::before{background:var(--accent2);}
+.stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.stat-value{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-bottom:3px;}
+.stat-value.positive{color:var(--green);}
+.stat-value.negative{color:var(--red);}
+.stat-unit{font-size:11px;color:var(--muted);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+@media(max-width:860px){.two-col{grid-template-columns:1fr;}}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:20px;}
+.form-card-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.ficon{width:26px;height:26px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.ficon-green{background:rgba(34,197,94,.12);}
+.ficon-red{background:rgba(239,68,68,.12);}
+.ficon-blue{background:rgba(99,102,241,.12);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group.full{grid-column:1/-1;}
+.form-group label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:block;}
+.form-group input,.form-group select{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;padding:12px 16px;color:var(--text);font-family:'DM Mono',monospace;font-size:13px;outline:none;transition:all .2s;width:100%;}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);background:rgba(0,212,170,.03);box-shadow:0 0 15px rgba(0,212,170,.05);}
+.form-group select option{background:var(--surface);}
+.btn{display:flex;align-items:center;justify-content:center;padding:14px;background:none;border:1px dashed var(--accent);color:var(--accent);border-radius:4px;font-family:'DM Mono',monospace;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;gap:8px;}
+.btn:hover{background:rgba(0,212,170,.05);transform:translateY(-1px);}
+.btn-secondary{border-color:var(--muted);color:var(--muted);}
+.btn-secondary:hover{border-color:var(--accent2);color:var(--accent2);}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px;}
+.table-header{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);flex-wrap:wrap;gap:8px;}
+.table-header-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;}
+.table-count{font-size:11px;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:3px 10px;border-radius:2px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{padding:9px 14px;text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
+tbody tr{border-bottom:1px solid rgba(30,45,69,.5);transition:background .15s;}
+tbody tr:hover{background:rgba(0,212,170,.03);}
+tbody tr:last-child{border-bottom:none;}
+tbody td{padding:9px 14px;vertical-align:middle;}
+.amount-positive{color:var(--green);font-weight:500;}
+.amount-negative{color:var(--red);font-weight:500;}
+.tag{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:1px;text-transform:uppercase;}
+.tag-green{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2);}
+.tag-red{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+.tag-yellow{background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.2);}
+.tag-blue{background:rgba(99,102,241,.12);color:var(--accent3);border:1px solid rgba(99,102,241,.2);}
+.btn-sm{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;cursor:pointer;transition:all .2s;margin-right:3px;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+.btn-sm-red:hover{border-color:var(--red)!important;color:var(--red)!important;}
+.empty-row td{text-align:center;padding:26px;color:var(--muted);font-size:12px;letter-spacing:1px;}
+.scrollable{overflow-x:auto;}
+.bilan-box{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
+.bilan-item{text-align:center;}
+.bilan-item-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.bilan-item-value{font-family:'Syne',sans-serif;font-size:19px;font-weight:700;}
+.bilan-sep{font-size:20px;color:var(--border);}
+.date-input{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;}
+.date-input:focus{border-color:var(--accent);}
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.filter-label{font-size:11px;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+.filter-select{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:7px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;}
+.monthly-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:20px;}
+.month-card{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;cursor:pointer;transition:border-color .2s;}
+.month-card:hover,.month-card.selected{border-color:var(--accent);}
+.month-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.month-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;}
+.month-rows{display:flex;flex-direction:column;gap:4px;}
+.month-row{display:flex;justify-content:space-between;font-size:11px;}
+.month-row .label{color:var(--muted);}
+.bar-container{height:3px;background:var(--bg);border-radius:2px;margin-top:8px;}
+.bar-fill{height:100%;border-radius:2px;}
+.cat-section{margin-bottom:22px;}
+.cat-header{display:flex;align-items:center;gap:10px;padding:8px 0;margin-bottom:10px;border-bottom:1px solid var(--border);}
+.cat-header-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;}
+.cat-count{font-size:11px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:2px 8px;border-radius:2px;}
+.annual-chart{display:flex;align-items:flex-end;gap:5px;height:150px;padding:0 4px;margin-bottom:6px;}
+.chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}
+.chart-bar-wrap{width:100%;display:flex;gap:2px;align-items:flex-end;justify-content:center;flex:1;}
+.chart-bar{width:45%;border-radius:2px 2px 0 0;min-height:2px;}
+.chart-bar.income{background:var(--green);opacity:.8;}
+.chart-bar.expense{background:var(--red);opacity:.7;}
+.chart-label{font-size:9px;color:var(--muted);text-align:center;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:30px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 0 60px rgba(0,212,170,.1);}
+.modal-title{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;letter-spacing:1px;margin-bottom:18px;color:var(--accent);}
+.modal-footer{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;}
+.btn-cancel{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:8px 16px;border-radius:3px;cursor:pointer;}
+.btn-save{background:var(--accent);border:none;color:var(--bg);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:8px 20px;border-radius:3px;cursor:pointer;letter-spacing:1px;}
+.print-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.btn-print{background:none;border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;padding:6px 12px;border-radius:3px;cursor:pointer;transition:all .2s;}
+.btn-print:hover{border-color:var(--accent2);color:var(--accent2);}
+.btn-print.pdf-btn:hover{border-color:var(--red);color:var(--red);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--accent);border-radius:4px;padding:10px 16px;font-size:12px;z-index:9999;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.access-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;color:var(--muted);font-size:12px;letter-spacing:1px;gap:12px;}
+.access-denied-icon{font-size:40px;opacity:.3;}
+@media print{
+  body{background:#fff!important;color:#000!important;}
+  .header,.nav,.print-bar,.btn-add,.btn-sm,.btn-icon,.btn-logout,.no-print{display:none!important;}
+  .page{display:block!important;padding:10px;}
+  .stat-card,.form-card,.table-card,.bilan-box{border:1px solid #ccc!important;background:#fff!important;}
+  .amount-positive{color:#15803d!important;}.amount-negative{color:#b91c1c!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">INCOMS</div>
+    <div class="login-sub">Gestion Comptable & Stock</div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px;">Identifiant</label>
+      <input type="text" id="login-user" placeholder="Votre identifiant" autocomplete="username">
+    </div>
+    <div class="form-group" style="margin-bottom:16px;">
+      <label style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:6px;">Mot de passe</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">RÔLE</div>
+    <div class="login-role">
+      <button class="role-btn active" onclick="selectRole('admin',this)">Administrateur</button>
+      <button class="role-btn" onclick="selectRole('user',this)">Employé</button>
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">CONNEXION</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="nav">
+    <div class="nav-logo">
+      <span class="header-logo">INCOMS</span>
+    </div>
+    <div class="nav-item admin-only" onclick="showPage('personnel')" data-page="personnel"><i>👥</i><span>Gestion de personnel</span></div>
+    <div class="nav-item" onclick="toggleSubMenu('stock-sub')" data-page="stock"><i>📦</i><span>Gestion de stock</span></div>
+    <div class="nav-sub-menu" id="nav-sub-stock">
+      <div class="nav-sub-item" onclick="showPage('stock');showStockSub('inventory')" data-sub="inventory"><span>Inventaire</span></div>
+      <div class="nav-sub-item admin-only" onclick="showPage('stock');showStockSub('add')" data-sub="add"><span>Ajouter un article</span></div>
+      <div class="nav-sub-item" onclick="showPage('stock');showStockSub('sale')" data-sub="sale"><span>Nouvelle entrée (Vente)</span></div>
+      <div class="nav-sub-item" onclick="showPage('stock');showStockSub('expense')" data-sub="expense"><span>Nouvelle sortie (Dépense)</span></div>
+    </div>
+    <div class="nav-item" onclick="toggleSubMenu('ventes-sub')" data-page="ventes"><i>🤝</i><span>Gestion des ventes</span></div>
+    <div class="nav-sub-menu" id="nav-sub-ventes">
+      <div class="nav-sub-item" onclick="showPage('all-sales')" data-sub="all-sales"><span>Liste des ventes</span></div>
+      <div class="nav-sub-item" onclick="showPage('clients')" data-sub="clients"><span>Liste des clients</span></div>
+    </div>
+    <div class="nav-item admin-only" onclick="showPage('journal')" data-page="historique"><i>📊</i><span>Historique</span></div>
+  </div>
+
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:20px;">
+      <button class="toggle-sidebar" onclick="toggleSidebar()">☰</button>
+      <span style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;" id="current-page-title">Tableau de Bord</span>
+    </div>
+    <div class="header-right">
+      <div class="user-badge"><div class="dot"></div><span id="user-name-display">—</span></div>
+      <div class="admin-badge" id="admin-badge" style="display:none;">ADMIN</div>
+      <button class="btn-icon" id="btn-settings" onclick="openModal('modal-settings')" style="display:none;">⚙</button>
+      <button class="btn-icon btn-danger" onclick="doLogout()">⏻</button>
+    </div>
+  </div>
+
+  <!-- JOURNAL -->
+  <div class="page" id="page-journal">
+    <div class="nav" style="flex-direction:row;height:auto;position:static;width:auto;border:none;margin-bottom:18px;background:none;padding:0;">
+      <div class="nav-item active" onclick="showPage('journal')" style="padding:8px 16px;">Journal</div>
+      <div class="nav-item" onclick="showPage('bilan-q')" style="padding:8px 16px;">Journalier</div>
+      <div class="nav-item" onclick="showPage('bilan-m')" style="padding:8px 16px;">Mensuel</div>
+      <div class="nav-item" onclick="showPage('bilan-a')" style="padding:8px 16px;">Annuel</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div><div class="section-title">Journal du Jour</div><div class="section-sub" id="journal-date-label">—</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="filter-label">Date :</span>
+        <input type="date" class="date-input" id="journal-date" onchange="renderJournal()">
+      </div>
+    </div>
+    <div class="stat-cards" id="journal-stats"></div>
+    <div class="two-col">
+      <div class="form-card">
+        <div class="form-card-title"><div class="ficon ficon-green">📦</div>Nouvelle Entrée (Vente)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+          <div class="form-group" style="grid-column: 1 / -1;"><label>Article</label><input type="text" id="in-article" placeholder="REF ou nom" list="stock-dl" oninput="onArticleInput()"><datalist id="stock-dl"></datalist></div>
+          <div class="form-group"><label>Quantité</label><input type="number" id="in-qty" placeholder="0" min="1" oninput="calcEntryTotal()"></div>
+          <div class="form-group"><label>Prix Unitaire (FCFA)</label><input type="number" id="in-price" placeholder="0" min="0" oninput="calcEntryTotal()"></div>
+          <div class="form-group"><label>Nom du Client</label><input type="text" id="in-client-name" placeholder="ex: M. Kouadio"></div>
+          <div class="form-group"><label>Téléphone Client</label><input type="text" id="in-client-phone" placeholder="ex: 0700000000"></div>
+          <div class="form-group" style="grid-column: 1 / -1;"><label>Total</label><div class="calculated-field" id="in-total" style="padding:10px; font-weight:700;">0 FCFA</div></div>
+        </div>
+        <button class="btn" onclick="addEntry()" style="width:100%; margin-top:15px;">+ ENREGISTRER L'ENTRÉE</button>
+      </div>
+      <div class="form-card">
+        <div class="form-card-title"><div class="ficon ficon-red">💸</div>Nouvelle Sortie (Dépense)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+          <div class="form-group" style="grid-column: span 2;"><label>Motif / Description</label><input type="text" id="out-motif" placeholder="ex : Achat fournitures, Salaires..."></div>
+          <div class="form-group"><label>Montant (FCFA)</label><input type="number" id="out-amount" placeholder="0" min="0"></div>
+          <div class="form-group"><label>Catégorie</label>
+            <select id="out-cat"><option>Achat stock</option><option>Salaires</option><option>Loyer</option><option>Transport</option><option>Services</option><option>Autre</option></select>
+          </div>
+        </div>
+        <button class="btn" onclick="addExpense()" style="width:100%; margin-top:15px; border-color:var(--red); color:var(--red);">+ ENREGISTRER LA SORTIE</button>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="table-card">
+        <div class="table-header"><div class="table-header-title" style="color:var(--green)">▲ ENTRÉES</div><span class="table-count" id="entries-count">0 op.</span></div>
+        <div class="scrollable"><table><thead><tr><th>Article</th><th>Qté</th><th>P.U.</th><th>Total</th><th></th></tr></thead><tbody id="entries-tbody"></tbody></table></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header"><div class="table-header-title" style="color:var(--red)">▼ SORTIES</div><span class="table-count" id="expenses-count">0 op.</span></div>
+        <div class="scrollable"><table><thead><tr><th>Motif</th><th>Catégorie</th><th>Montant</th><th></th></tr></thead><tbody id="expenses-tbody"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOCK -->
+  <div class="page" id="page-stock">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div><div class="section-title">Gestion du Stock</div><div class="section-sub">INVENTAIRE · INCOMS</div></div>
+      <div class="filter-bar">
+        <span class="filter-label">Catégorie :</span>
+        <select class="filter-select" id="stock-cat-filter" onchange="renderStock()">
+          <option value="">— Toutes —</option><option>Bureautique</option><option>Informatique</option><option>Accessoires divers</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Sub-page: Inventory -->
+    <div id="stock-inventory" class="stock-sub-page">
+      <div class="section-title">État du Stock</div>
+      <div class="section-sub">Inventaire temps réel</div>
+      <div class="card" style="margin-top:10px; overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Référence</th>
+              <th>Désignation</th>
+              <th>Catégorie</th>
+              <th>Quantité</th>
+              <th>Prix Unitaire</th>
+              <th>Valeur</th>
+              <th>Alerte</th>
+              <th class="admin-only">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="stock-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sub-page: Add Article -->
+    <div id="stock-add" class="stock-sub-page admin-only" style="display:none;">
+      <div class="section-title">Nouveau Produit</div>
+      <div class="section-sub">Ajouter un article au catalogue</div>
+      <div class="card" style="max-width:800px; margin-top:10px;">
+        <input type="hidden" id="stock-id">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div class="form-group"><label>Référence</label><input type="text" id="stock-ref" placeholder="ex: REF-100"></div>
+          <div class="form-group"><label>Nom de l'article</label><input type="text" id="stock-name" placeholder="ex: Ramettes A4"></div>
+          <div class="form-group"><label>Catégorie</label>
+            <select id="stock-category">
+              <option>Informatique</option>
+              <option>Bureautique</option>
+              <option>Consommables</option>
+              <option>Accessoires divers</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Stock Initial</label><input type="number" id="stock-qty" value="0"></div>
+          <div class="form-group"><label>Prix Unitaire (FCFA)</label><input type="number" id="stock-price" value="0"></div>
+          <div class="form-group"><label>Seuil Alerte</label><input type="number" id="stock-threshold" value="5"></div>
+        </div>
+        <button class="btn" onclick="saveStockItem()" style="width:100%; margin-top:25px;">+ AJOUTER AU STOCK</button>
+        <button class="btn btn-secondary" id="btn-cancel-edit" onclick="resetStockForm()" style="width:100%; margin-top:10px; display:none;">ANNULER LA MODIFICATION</button>
+      </div>
+    </div>
+
+    <!-- Sub-page: Sale (Nouvelle Entrée) -->
+    <div id="stock-sale" class="stock-sub-page" style="display:none;">
+      <div class="section-title">Enregistrement Vente</div>
+      <div class="section-sub">Sortie de stock et informations client</div>
+      <div class="card" style="max-width:800px; margin-top:10px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div class="form-group"><label>Article</label><select id="sale-article-select" onchange="updateSalePrice()"></select></div>
+          <div class="form-group"><label>Quantité</label><input type="number" id="sale-qty" value="1" oninput="calcSaleTotal()"></div>
+          <div class="form-group"><label>Prix Unitaire (FCFA)</label><input type="number" id="sale-price" oninput="calcSaleTotal()"></div>
+          <div class="form-group"><label>Nom du Client</label><input type="text" id="sale-client-name" placeholder="ex: M. Kouadio"></div>
+          <div class="form-group"><label>Téléphone Client</label><input type="text" id="sale-client-phone" placeholder="ex: 0700000000"></div>
+          <div class="form-group"><label>Total</label><div id="sale-total-label" style="font-size:16px; font-weight:700; color:var(--accent); padding:10px 0;">0 FCFA</div></div>
+        </div>
+        <button class="btn" onclick="submitSale()" style="width:100%; margin-top:20px;">VALIDER LA VENTE ET ENREGISTRER CLIENT</button>
+      </div>
+    </div>
+
+    <!-- Sub-page: Expense (Nouvelle Sortie) -->
+    <div id="stock-expense" class="stock-sub-page" style="display:none;">
+      <div class="section-title">Nouvelle Sortie</div>
+      <div class="section-sub">Enregistrer une dépense ou sortie de caisse</div>
+      <div class="card" style="max-width:800px; margin-top:10px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div class="form-group"><label>Motif / Description</label><input type="text" id="expense-motif" placeholder="ex : Achat fournitures, Salaires..."></div>
+          <div class="form-group"><label>Montant (FCFA)</label><input type="number" id="expense-amount" placeholder="0"></div>
+          <div class="form-group"><label>Catégorie</label>
+            <select id="expense-category">
+              <option>Achat stock</option>
+              <option>Transport</option>
+              <option>Énergie / Eau</option>
+              <option>Loyer</option>
+              <option>Maintenance</option>
+              <option>Divers</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn" onclick="submitStockExpense()" style="width:100%; margin-top:20px; border-color:var(--accent2); color:var(--accent2);">+ ENREGISTRER LA SORTIE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-bilan-q">
+    <div class="nav" style="flex-direction:row;height:auto;position:static;width:auto;border:none;margin-bottom:18px;background:none;padding:0;">
+      <div class="nav-item" onclick="showPage('journal')" style="padding:8px 16px;">Journal</div>
+      <div class="nav-item active" onclick="showPage('bilan-q')" style="padding:8px 16px;">Journalier</div>
+      <div class="nav-item" onclick="showPage('bilan-m')" style="padding:8px 16px;">Mensuel</div>
+      <div class="nav-item" onclick="showPage('bilan-a')" style="padding:8px 16px;">Annuel</div>
+    </div>
+    <div id="bq-wrap">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+        <div><div class="section-title">Bilan Quotidien</div><div class="section-sub">RÉSUMÉ FINANCIER JOURNALIER</div></div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="filter-label">Date :</span><input type="date" class="date-input" id="bq-date" onchange="renderBilanQ()"></div>
+      </div>
+      <div class="print-bar no-print">
+        <button class="btn-print" onclick="printBilan('bilan-q')">🖨 Imprimer</button>
+        <button class="btn-print pdf-btn" onclick="exportPDF('bilan-q')">📄 Exporter PDF</button>
+      </div>
+      <div class="stat-cards" id="bq-stats"></div>
+      <div class="bilan-box" id="bq-bilan"></div>
+      <div class="two-col">
+        <div class="table-card"><div class="table-header"><div class="table-header-title" style="color:var(--green)">▲ ENTRÉES</div></div><div class="scrollable"><table><thead><tr><th>Article</th><th>Qté</th><th>P.U.</th><th>Total</th></tr></thead><tbody id="bq-entries"></tbody></table></div></div>
+        <div class="table-card"><div class="table-header"><div class="table-header-title" style="color:var(--red)">▼ SORTIES</div></div><div class="scrollable"><table><thead><tr><th>Motif</th><th>Catégorie</th><th>Montant</th></tr></thead><tbody id="bq-expenses"></tbody></table></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILAN MENSUEL -->
+  <div class="page" id="page-bilan-m">
+    <div class="nav" style="flex-direction:row;height:auto;position:static;width:auto;border:none;margin-bottom:18px;background:none;padding:0;">
+      <div class="nav-item" onclick="showPage('journal')" style="padding:8px 16px;">Journal</div>
+      <div class="nav-item" onclick="showPage('bilan-q')" style="padding:8px 16px;">Journalier</div>
+      <div class="nav-item active" onclick="showPage('bilan-m')" style="padding:8px 16px;">Mensuel</div>
+      <div class="nav-item" onclick="showPage('bilan-a')" style="padding:8px 16px;">Annuel</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div><div class="section-title">Bilan Mensuel</div><div class="section-sub">RÉSUMÉ PAR MOIS · INCOMS</div></div>
+      <div class="filter-bar">
+        <span class="filter-label">Année :</span><select class="filter-select" id="bm-year" onchange="renderBilanM()"></select>
+        <span class="filter-label">Mois :</span>
+        <select class="filter-select" id="bm-month" onchange="renderBilanMDetail()">
+          <option value="">— Tous —</option><option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option><option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option><option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option><option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+        </select>
+      </div>
+    </div>
+    <div class="print-bar no-print">
+      <button class="btn-print" onclick="printBilan('bilan-m')">🖨 Imprimer</button>
+      <button class="btn-print pdf-btn" onclick="exportPDF('bilan-m')">📄 Exporter PDF</button>
+    </div>
+    <div class="stat-cards" id="bm-stats"></div>
+    <div class="monthly-grid" id="bm-grid"></div>
+    <div id="bm-detail"></div>
+  </div>
+
+  <!-- BILAN ANNUEL -->
+  <div class="page" id="page-bilan-a">
+    <div class="nav" style="flex-direction:row;height:auto;position:static;width:auto;border:none;margin-bottom:18px;background:none;padding:0;">
+      <div class="nav-item" onclick="showPage('journal')" style="padding:8px 16px;">Journal</div>
+      <div class="nav-item" onclick="showPage('bilan-q')" style="padding:8px 16px;">Journalier</div>
+      <div class="nav-item" onclick="showPage('bilan-m')" style="padding:8px 16px;">Mensuel</div>
+      <div class="nav-item active" onclick="showPage('bilan-a')" style="padding:8px 16px;">Annuel</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+      <div><div class="section-title">Bilan Annuel</div><div class="section-sub">VUE GLOBALE · INCOMS</div></div>
+      <div class="filter-bar"><span class="filter-label">Année :</span><select class="filter-select" id="ba-year" onchange="renderBilanA()"></select></div>
+    </div>
+    <div class="print-bar no-print">
+      <button class="btn-print" onclick="printBilan('bilan-a')">🖨 Imprimer</button>
+      <button class="btn-print pdf-btn" onclick="exportPDF('bilan-a')">📄 Exporter PDF</button>
+    </div>
+    <div class="stat-cards" id="ba-stats"></div>
+    <div class="form-card" style="margin-bottom:16px;">
+      <div class="form-card-title">📊 ÉVOLUTION MENSUELLE</div>
+      <div class="annual-chart" id="ba-chart"></div>
+      <div style="display:flex;gap:16px;margin-top:6px;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;background:var(--green);border-radius:2px;opacity:.8;"></div>Entrées</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;background:var(--red);border-radius:2px;opacity:.7;"></div>Sorties</div>
+      </div>
+    </div>
+    <div class="table-card"><div class="table-header"><div class="table-header-title">RÉCAPITULATIF ANNUEL</div></div><div class="scrollable"><table><thead><tr><th>Mois</th><th>Entrées</th><th>Sorties</th><th>Bilan Net</th></tr></thead><tbody id="ba-tbody"></tbody></table></div></div>
+  </div>
+
+  <!-- PERSONNEL -->
+  <div class="page" id="page-personnel">
+    <div class="section-title">Gestion du Personnel</div>
+    <div class="section-sub">ADMINISTRATION DES UTILISATEURS ET RÔLES</div>
+    <div class="access-denied">
+      <div class="access-denied-icon">👥</div>
+      <div>Module de gestion avancée du personnel bientôt disponible</div>
+      <button class="btn-icon" onclick="openModal('modal-settings')">Accéder aux Paramètres de Compte</button>
+    </div>
+  </div>
+
+  <!-- ALL SALES LIST -->
+  <div class="page" id="page-all-sales">
+    <div class="section-title">Liste des Ventes</div>
+    <div class="section-sub">HISTORIQUE EXHAUSTIF DES TRANSACTIONS</div>
+    <div class="table-card" style="margin-top:15px;">
+      <div class="table-header">
+        <div class="table-header-title">TOUTES LES VENTES</div>
+        <div style="display:flex; gap:10px;">
+          <input type="date" id="as-filter-from" class="date-input" onchange="renderAllSales()">
+          <input type="date" id="as-filter-to" class="date-input" onchange="renderAllSales()">
+        </div>
+      </div>
+      <div class="scrollable">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Article</th>
+              <th>Qté</th>
+              <th>P.U.</th>
+              <th>Total</th>
+              <th class="admin-only">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="all-sales-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="page" id="page-clients">
+    <div class="section-title">Gestion des Clients</div>
+    <div class="section-sub">ANNUAIRE ET FIDÉLISATION CLIENTS</div>
+    <div class="table-card" style="margin-top:15px;">
+      <div class="table-header">
+        <div class="table-header-title">BASE DE DONNÉES CLIENTS</div>
+      </div>
+      <div class="scrollable">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom du Client</th>
+              <th>Téléphone</th>
+              <th>Email</th>
+              <th>Date d'inscription</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clients-table-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SETTINGS -->
+<div class="modal-overlay" id="modal-settings" style="display:none;">
+  <div class="modal">
+    <div class="modal-title">⚙ Paramètres — Gestion des Accès</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:18px;">Laisser vide pour ne pas modifier le mot de passe.</p>
+    <div style="padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--accent3);letter-spacing:1px;margin-bottom:10px;font-weight:600;">COMPTE ADMINISTRATEUR</div>
+      <div class="form-row">
+        <div class="form-group"><label>Identifiant</label><input type="text" id="cfg-admin-user" placeholder="admin"></div>
+        <div class="form-group"><label>Nouveau mot de passe</label><input type="password" id="cfg-admin-pass" placeholder="(inchangé si vide)"></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;font-weight:600;">COMPTE EMPLOYÉ</div>
+      <div class="form-row">
+        <div class="form-group"><label>Identifiant</label><input type="text" id="cfg-user-user" placeholder="employe"></div>
+        <div class="form-group"><label>Nouveau mot de passe</label><input type="password" id="cfg-user-pass" placeholder="(inchangé si vide)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-settings')">Annuler</button>
+      <button class="btn-save" onclick="saveSettings()">ENREGISTRER</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDIT STOCK -->
+<div class="modal-overlay" id="modal-stock-edit" style="display:none;">
+  <div class="modal">
+    <div class="modal-title">✏ Modifier l'Article</div>
+    <div class="form-row"><div class="form-group"><label>Référence</label><input type="text" id="me-ref"></div><div class="form-group"><label>Nom</label><input type="text" id="me-name"></div></div>
+    <div class="form-row">
+      <div class="form-group"><label>Catégorie</label><select id="me-cat"><option>Bureautique</option><option>Informatique</option><option>Accessoires divers</option></select></div>
+      <div class="form-group"><label>Quantité</label><input type="number" id="me-qty" min="0"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Prix Unitaire (FCFA)</label><input type="number" id="me-price" min="0"></div><div class="form-group"><label>Seuil Alerte</label><input type="number" id="me-threshold" min="0"></div></div>
+    <input type="hidden" id="me-id">
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal('modal-stock-edit')">Annuler</button><button class="btn-save" onclick="saveStockEdit()">ENREGISTRER</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// API CLIENT
+// ══════════════════════════════════════════════
+const API_BASE = '/backend-php/api.php';
+let authToken = sessionStorage.getItem('incoms_token') || null;
+let currentUser = null;
+
+async function api(method, path, body=null, useAuth=true){
+  // Clean path: remove leading /api if present and leading slash
+  let cleanPath = path.replace(/^\/api\//, '').replace(/^\//, '');
+  
+  // Construct URL with route parameter
+  const url = `${API_BASE}?route=${cleanPath}`;
+  
+  // For GET/DELETE with extra params, they should be appended to the URL
+  // But wait, the original code might be doing: api('GET', '/api/stock?category=' + cat)
+  // We need to handle that.
+  let finalUrl = url;
+  if (method === 'GET' || method === 'DELETE') {
+    // If the path already has query params, we need to merge them
+    if (cleanPath.includes('?')) {
+        let [routePart, queryPart] = cleanPath.split('?');
+        finalUrl = `${API_BASE}?route=${routePart}&${queryPart}`;
+    }
+  }
+
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (useAuth && authToken) opts.headers['Authorization'] = 'Bearer ' + authToken;
+  if (body) opts.body = JSON.stringify(body);
+  
+  const res = await fetch(finalUrl, opts);
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+  return data;
+}
+
+// ══════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════
+const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MONTHS_S=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const CAT_ICONS={'Bureautique':'📋','Informatique':'💻','Accessoires divers':'🔧'};
+const CATEGORIES=['Bureautique','Informatique','Accessoires divers'];
+let selectedRole='admin';
+let stockCache=[];
+
+function fmt(n){return Number(n||0).toLocaleString('fr-FR')+' FCFA';}
+function fmtDate(d){const dt=new Date(d+'T12:00:00');return dt.toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
+
+// ══════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════
+function selectRole(role,btn){
+  selectedRole=role;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+async function doLogin(){
+  const u=document.getElementById('login-user').value.trim();
+  const p=document.getElementById('login-pass').value.trim();
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  if(!u||!p){errEl.textContent='Remplissez tous les champs';errEl.style.display='block';return;}
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Connexion...';
+  try {
+    const data = await api('POST','/api/auth/login',{username:u,password:p,role:selectedRole},false);
+    authToken = data.token;
+    currentUser = data.user;
+    sessionStorage.setItem('incoms_token', authToken);
+    errEl.style.display='none';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('user-name-display').textContent=u.toUpperCase();
+    if(currentUser.role==='admin'){
+      document.getElementById('admin-badge').style.display='inline';
+      document.getElementById('btn-settings').style.display='inline';
+    }
+    document.querySelectorAll('.admin-only').forEach(el=>el.style.display=currentUser.role==='admin'?' flex':'none');
+    initApp();
+    showPage('journal');
+  } catch(e){
+    errEl.textContent=e.message;
+    errEl.style.display='block';
+  } finally {
+    btn.disabled=false;btn.textContent='CONNEXION';
+  }
+}
+
+function doLogout(){
+  authToken=null;currentUser=null;
+  sessionStorage.removeItem('incoms_token');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('admin-badge').style.display='none';
+  document.getElementById('btn-settings').style.display='none';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════
+function openModal(id){document.getElementById(id).style.display='flex';}
+function closeModal(id){document.getElementById(id).style.display='none';}
+
+async function saveSettings(){
+  const configs=[
+    {username:document.getElementById('cfg-admin-user').value.trim(), pass:document.getElementById('cfg-admin-pass').value.trim()},
+    {username:document.getElementById('cfg-user-user').value.trim(),  pass:document.getElementById('cfg-user-pass').value.trim()},
+  ];
+  try {
+    for(const c of configs){
+      if(c.username && c.pass){
+        await api('POST','/api/auth/change-password',{targetUsername:c.username, newPassword:c.pass});
+      }
+    }
+    closeModal('modal-settings');
+    showToast('✅ Paramètres enregistrés');
+  } catch(e){ showToast('❌ '+e.message); }
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function toggleSidebar(){
+  document.body.classList.toggle('sidebar-collapsed');
+}
+
+const PAGE_NAMES = {
+  'personnel': 'Gestion du Personnel',
+  'stock': 'Gestion de Stock',
+  'clients': 'Gestion des Ventes',
+  'all-sales': 'Gestion des Ventes',
+  'bilan-q': 'Historique',
+  'bilan-m': 'Historique',
+  'bilan-a': 'Historique',
+  'journal': 'Historique'
+};
+
+function toggleSubMenu(key){
+  if(key==='stock-sub'){
+    const menu=document.getElementById('nav-sub-stock');
+    menu.classList.toggle('active');
+    showPage('stock');
+    showStockSub('inventory');
+  } else if(key==='ventes-sub'){
+    const menu=document.getElementById('nav-sub-ventes');
+    menu.classList.toggle('active');
+    showPage('all-sales');
+  }
+}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  
+  const targetPage = document.getElementById('page-'+name);
+  if(targetPage) targetPage.classList.add('active');
+
+  const pageTitle = PAGE_NAMES[name] || 'Application';
+  document.getElementById('current-page-title').textContent = pageTitle.toUpperCase();
+
+  // Handle sidebar active state
+  let sidebarKey = name;
+  if(name.startsWith('bilan-') || name === 'journal') sidebarKey = 'historique';
+  if(name === 'all-sales' || name === 'clients') sidebarKey = 'ventes';
+  
+  const ni=document.querySelector(`[data-page="${sidebarKey}"]`);
+  if(ni) ni.classList.add('active');
+
+  // Auto-expand sub-menus
+  if(sidebarKey==='stock') document.getElementById('nav-sub-stock').classList.add('active');
+  else if(sidebarKey!=='stock') document.getElementById('nav-sub-stock').classList.remove('active');
+
+  if(sidebarKey==='ventes') document.getElementById('nav-sub-ventes').classList.add('active');
+  else if(sidebarKey!=='ventes') document.getElementById('nav-sub-ventes').classList.remove('active');
+
+  // Highlight sub-item
+  document.querySelectorAll('.nav-sub-item').forEach(n=>n.classList.remove('active'));
+  const subName = (name === 'inventory' || name === 'add' || name === 'sale' || name === 'expense') ? name : name; // wait, stock uses showStockSub
+  // For ventas, name IS the sub-item name: 'all-sales' or 'clients'
+  const si = document.querySelector(`.nav-sub-item[data-sub="${name}"]`);
+  if(si) si.classList.add('active');
+
+  if(name==='journal') renderJournal();
+  if(name==='stock') { renderStock(); }
+  if(name==='clients') renderClients();
+  if(name==='all-sales') renderAllSales();
+  if(name==='bilan-q'){if(currentUser.role!=='admin'){document.getElementById('bq-wrap').innerHTML='<div class="access-denied"><div class="access-denied-icon">🔒</div><div>Accès réservé aux administrateurs</div></div>';}else renderBilanQ();}
+  if(name==='bilan-m') renderBilanM();
+  if(name==='bilan-a') renderBilanA();
+}
+
+function showStockSub(name){
+  document.querySelectorAll('.stock-sub-page').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.nav-sub-item').forEach(n=>n.classList.remove('active'));
+  
+  const target = document.getElementById('stock-'+name);
+  if(target) target.style.display='block';
+  
+  const ni = document.querySelector(`.nav-sub-item[data-sub="${name}"]`);
+  if(ni) ni.classList.add('active');
+
+  if(name==='sale') prepareSaleForm();
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+async function initApp(){
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('journal-date').value=today;
+  document.getElementById('bq-date').value=today;
+  const yr=new Date().getFullYear();
+  ['bm-year','ba-year'].forEach(id=>{
+    const s=document.getElementById(id);
+    s.innerHTML=[0,1,2,3,4,5].map(i=>`<option value="${yr-i}">${yr-i}</option>`).join('');
+  });
+  // Preload stock for suggestions
+  try {
+    stockCache = await api('GET','/api/stock');
+    refreshStockSuggestions();
+  } catch(e){}
+  renderJournal();
+  // Load settings display
+  const users = await api('GET','/api/auth/users').catch(()=>[]);
+  const adminUser = users.find(u=>u.role==='admin');
+  const empUser   = users.find(u=>u.role==='user');
+  if(adminUser) document.getElementById('cfg-admin-user').value=adminUser.username;
+  if(empUser)   document.getElementById('cfg-user-user').value=empUser.username;
+}
+
+function refreshStockSuggestions(){
+  const dl=document.getElementById('stock-dl');
+  if(dl) dl.innerHTML=stockCache.map(s=>`<option value="${s.ref} - ${s.name}" data-price="${s.price}">`).join('');
+  
+  const sel=document.getElementById('sale-article-select');
+  if(sel) sel.innerHTML='<option value="">— Choisir un article —</option>' + stockCache.map(s=>`<option value="${s.id}" data-price="${s.price}">${s.ref} - ${s.name} (${s.qty} en stock)</option>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// JOURNAL
+// ══════════════════════════════════════════════
+function onArticleInput(){
+  const val=document.getElementById('in-article').value;
+  const item=stockCache.find(s=>val===`${s.ref} - ${s.name}`||val===s.ref||val===s.name);
+  if(item){document.getElementById('in-price').value=item.price;calcEntryTotal();}
+}
+
+function calcEntryTotal(){
+  const q=parseFloat(document.getElementById('in-qty').value)||0;
+  const p=parseFloat(document.getElementById('in-price').value)||0;
+  document.getElementById('in-total').textContent=fmt(q*p);
+}
+
+async function addEntry(){
+  const article=document.getElementById('in-article').value.trim();
+  const qty=parseFloat(document.getElementById('in-qty').value)||0;
+  const price=parseFloat(document.getElementById('in-price').value)||0;
+  const cName=document.getElementById('in-client-name').value.trim();
+  const cPhone=document.getElementById('in-client-phone').value.trim();
+  const date=document.getElementById('journal-date').value;
+  if(!article||qty<=0||price<=0){showToast('⚠️ Remplissez au moins l\'article, la quantité et le prix');return;}
+  const stockItem=stockCache.find(s=>article.startsWith(s.ref)||article===s.name||article===`${s.ref} - ${s.name}`);
+  try {
+    await api('POST','/api/entries',{date,article,qty,price,total:qty*price,stock_id:stockItem?.id||null, client_name:cName, client_phone:cPhone});
+    document.getElementById('in-article').value='';
+    document.getElementById('in-qty').value='';
+    document.getElementById('in-price').value='';
+    document.getElementById('in-client-name').value='';
+    document.getElementById('in-client-phone').value='';
+    document.getElementById('in-total').textContent='0 FCFA';
+    stockCache=await api('GET','/api/stock');
+    refreshStockSuggestions();
+    renderJournal();
+    showToast('✅ Entrée enregistrée avec succès');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+async function addExpense(){
+  const motif=document.getElementById('out-motif').value.trim();
+  const amount=parseFloat(document.getElementById('out-amount').value)||0;
+  const category=document.getElementById('out-cat').value;
+  const date=document.getElementById('journal-date').value;
+  if(!motif||amount<=0){showToast('⚠️ Remplissez le motif et le montant');return;}
+  try {
+    await api('POST','/api/expenses',{date,motif,amount,category});
+    document.getElementById('out-motif').value='';
+    document.getElementById('out-amount').value='';
+    renderJournal();
+    showToast('✅ Sortie enregistrée');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+async function deleteEntry(id){
+  try{await api('DELETE','/api/entries/'+id);renderJournal();showToast('🗑 Entrée supprimée');}
+  catch(e){showToast('❌ '+e.message);}
+}
+
+async function deleteExpense(id){
+  try{await api('DELETE','/api/expenses/'+id);renderJournal();showToast('🗑 Sortie supprimée');}
+  catch(e){showToast('❌ '+e.message);}
+}
+
+async function renderJournal(){
+  const date=document.getElementById('journal-date').value;
+  document.getElementById('journal-date-label').textContent=fmtDate(date).toUpperCase();
+  try {
+    const [entries,expenses]=await Promise.all([
+      api('GET',`/api/entries?date=${date}`),
+      api('GET',`/api/expenses?date=${date}`)
+    ]);
+    const totalIn=entries.reduce((s,e)=>s+e.total,0);
+    const totalOut=expenses.reduce((s,e)=>s+e.amount,0);
+    const bilan=totalIn-totalOut;
+    document.getElementById('journal-stats').innerHTML=`
+      <div class="stat-card green"><div class="stat-label">Total Entrées</div><div class="stat-value positive">${fmt(totalIn)}</div><div class="stat-unit">${entries.length} vente(s)</div></div>
+      <div class="stat-card red"><div class="stat-label">Total Sorties</div><div class="stat-value negative">${fmt(totalOut)}</div><div class="stat-unit">${expenses.length} sortie(s)</div></div>
+      <div class="stat-card ${bilan>=0?'green':'red'}"><div class="stat-label">Bilan du Jour</div><div class="stat-value ${bilan>=0?'positive':'negative'}">${fmt(bilan)}</div><div class="stat-unit">${bilan>=0?'▲ Bénéfice':'▼ Déficit'}</div></div>
+    `;
+    document.getElementById('entries-count').textContent=entries.length+' op.';
+    document.getElementById('entries-tbody').innerHTML=entries.length?entries.map(e=>`<tr><td>${e.article}</td><td>${e.qty}</td><td>${Number(e.price).toLocaleString('fr-FR')}</td><td class="amount-positive">${fmt(e.total)}</td><td><button class="btn-sm btn-sm-red" onclick="deleteEntry(${e.id})">✕</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="5">Aucune entrée ce jour</td></tr>';
+    document.getElementById('expenses-count').textContent=expenses.length+' op.';
+    document.getElementById('expenses-tbody').innerHTML=expenses.length?expenses.map(e=>`<tr><td>${e.motif}</td><td><span class="tag tag-blue">${e.category}</span></td><td class="amount-negative">${fmt(e.amount)}</td><td><button class="btn-sm btn-sm-red" onclick="deleteExpense(${e.id})">✕</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Aucune sortie ce jour</td></tr>';
+  } catch(e){showToast('❌ Erreur chargement journal');}
+}
+
+// ══════════════════════════════════════════════
+// STOCK
+// ══════════════════════════════════════════════
+function getStockStatus(item){
+  if(item.qty<=2) return{cls:'s-critical',tag:'tag-red',label:'CRITIQUE'};
+  if(item.qty<=(item.threshold||5)) return{cls:'s-low',tag:'tag-yellow',label:'FAIBLE'};
+  if(item.qty===0) return{cls:'s-critical',tag:'tag-red',label:'RUPTURE'};
+  return{cls:'s-good',tag:'tag-green',label:'NORMAL'};
+}
+
+async function saveStock(){
+  const ref=document.getElementById('s-ref').value.trim();
+  const name=document.getElementById('s-name').value.trim();
+  const category=document.getElementById('s-cat').value;
+  const qty=parseInt(document.getElementById('s-qty').value)||0;
+  const price=parseFloat(document.getElementById('s-price').value)||0;
+  const threshold=parseInt(document.getElementById('s-threshold').value)||5;
+  const editId=document.getElementById('s-edit-id').value;
+  if(!ref||!name){showToast('⚠️ Référence et Nom obligatoires');return;}
+  try {
+    if(editId){await api('PUT','/api/stock/'+editId,{ref,name,category,qty,price,threshold});}
+    else {await api('POST','/api/stock',{id:'s'+Date.now(),ref,name,category,qty,price,threshold});}
+    cancelStockEdit();
+    stockCache=await api('GET','/api/stock');
+    refreshStockSuggestions();
+    renderStock();
+    showToast('✅ Stock mis à jour');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+function cancelStockEdit(){
+  ['s-ref','s-name','s-qty','s-price','s-threshold'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('s-edit-id').value='';
+  document.getElementById('stock-form-title').textContent='Ajouter un Article';
+  document.getElementById('stock-btn-label').textContent='AJOUTER AU STOCK';
+  document.getElementById('btn-cancel-edit').style.display='none';
+}
+
+function openEditModal(id){
+  const item=stockCache.find(s=>s.id===id);
+  if(!item) return;
+  document.getElementById('me-id').value=item.id;
+  document.getElementById('me-ref').value=item.ref;
+  document.getElementById('me-name').value=item.name;
+  document.getElementById('me-cat').value=item.category;
+  document.getElementById('me-qty').value=item.qty;
+  document.getElementById('me-price').value=item.price;
+  document.getElementById('me-threshold').value=item.threshold||5;
+  openModal('modal-stock-edit');
+}
+
+async function saveStockEdit(){
+  const id=document.getElementById('me-id').value;
+  const body={ref:document.getElementById('me-ref').value.trim(),name:document.getElementById('me-name').value.trim(),category:document.getElementById('me-cat').value,qty:parseInt(document.getElementById('me-qty').value)||0,price:parseFloat(document.getElementById('me-price').value)||0,threshold:parseInt(document.getElementById('me-threshold').value)||5};
+  try {
+    await api('PUT','/api/stock/'+id,body);
+    closeModal('modal-stock-edit');
+    stockCache=await api('GET','/api/stock');
+    refreshStockSuggestions();
+    renderStock();
+    showToast('✅ Article modifié');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+async function deleteStock(id){
+  if(!confirm('Supprimer cet article du stock ?')) return;
+  try {
+    await api('DELETE','/api/stock/'+id);
+    stockCache=await api('GET','/api/stock');
+    refreshStockSuggestions();
+    renderStock();
+    showToast('🗑 Article supprimé');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+async function renderStock(){
+  try {
+    stockCache=await api('GET','/api/stock');
+    refreshStockSuggestions();
+    const isAdmin=currentUser && currentUser.role==='admin';
+    const tbody=document.getElementById('stock-table-body');
+    if(!tbody) return;
+    tbody.innerHTML=stockCache.length ? stockCache.map(s=>{
+      const st=getStockStatus(s);
+      const val=s.qty*s.price;
+      return `<tr>
+        <td style="color:var(--accent3)">${s.ref}</td>
+        <td style="font-weight:600">${s.name}</td>
+        <td><span class="tag tag-blue">${s.category}</span></td>
+        <td style="font-weight:700;color:${s.qty<=2?'var(--red)':s.qty<=(s.threshold||5)?'var(--yellow)':'var(--text)'}">${s.qty}</td>
+        <td>${Number(s.price).toLocaleString('fr-FR')} FCFA</td>
+        <td class="amount-positive">${fmt(val)}</td>
+        <td><span class="tag ${st.tag}">${st.label}</span></td>
+        ${isAdmin ? `<td><button class="btn-sm" onclick="editStockItem('${s.id}')">✏</button><button class="btn-sm btn-sm-red" onclick="deleteStock('${s.id}')">✕</button></td>` : '<td>-</td>'}
+      </tr>`;
+    }).join('') : '<tr class="empty-row"><td colspan="8">Aucun article</td></tr>';
+  } catch(e){showToast('❌ Erreur chargement stock');}
+}
+
+// SALE FORM LOGIC
+function prepareSaleForm(){
+  document.getElementById('sale-qty').value=1;
+  document.getElementById('sale-client-name').value='';
+  document.getElementById('sale-client-phone').value='';
+  updateSalePrice();
+}
+
+function updateSalePrice(){
+  const sel=document.getElementById('sale-article-select');
+  const opt=sel.options[sel.selectedIndex];
+  if(opt && opt.value){
+    document.getElementById('sale-price').value = opt.dataset.price;
+  } else {
+    document.getElementById('sale-price').value = 0;
+  }
+  calcSaleTotal();
+}
+
+function calcSaleTotal(){
+  const q=parseFloat(document.getElementById('sale-qty').value)||0;
+  const p=parseFloat(document.getElementById('sale-price').value)||0;
+  document.getElementById('sale-total-label').textContent=fmt(q*p);
+}
+
+async function submitSale(){
+  const sid=document.getElementById('sale-article-select').value;
+  const qty=parseFloat(document.getElementById('sale-qty').value)||0;
+  const price=parseFloat(document.getElementById('sale-price').value)||0;
+  const cName=document.getElementById('sale-client-name').value.trim();
+  const cPhone=document.getElementById('sale-client-phone').value.trim();
+  const date=new Date().toISOString().split('T')[0];
+
+  if(!sid||qty<=0||price<=0||!cName||!cPhone){showToast('⚠️ Remplissez tous les champs (article, quantité, prix, client)');return;}
+  
+  const item=stockCache.find(s=>s.id===sid);
+  try {
+    await api('POST','/api/entries', {
+      date, article: item.name, qty, price, total:qty*price, stock_id:sid,
+      client_name:cName, client_phone:cPhone
+    });
+    showToast('✅ Vente enregistrée avec succès');
+    renderStock();
+    showStockSub('inventory');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+// EXPENSE FROM STOCK LOGIC
+async function submitStockExpense(){
+  const motif=document.getElementById('expense-motif').value.trim();
+  const amount=parseFloat(document.getElementById('expense-amount').value)||0;
+  const category=document.getElementById('expense-category').value;
+  const date=new Date().toISOString().split('T')[0];
+  if(!motif||amount<=0){showToast('⚠️ Remplissez le motif et le montant');return;}
+  try {
+    await api('POST','/api/expenses',{date,motif,amount,category});
+    document.getElementById('expense-motif').value='';
+    document.getElementById('expense-amount').value='';
+    showToast('✅ Dépense enregistrée');
+    showStockSub('inventory');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+// ALL SALES View
+async function renderAllSales(){
+  const from = document.getElementById('as-filter-from').value;
+  const to = document.getElementById('as-filter-to').value;
+  let url = '/api/entries';
+  if(from && to) url += `?from=${from}&to=${to}`;
+  
+  try {
+    const entries = await api('GET', url);
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    const tbody = document.getElementById('all-sales-table-body');
+    tbody.innerHTML = entries.length ? entries.map(e => `<tr>
+      <td style="color:var(--muted)">${new Date(e.date).toLocaleDateString()}</td>
+      <td style="font-weight:600">${e.article}</td>
+      <td>${e.qty}</td>
+      <td>${Number(e.price).toLocaleString('fr-FR')}</td>
+      <td class="amount-positive">${fmt(e.total)}</td>
+      ${isAdmin ? `<td><button class="btn-sm btn-sm-red" onclick="deleteEntry(${e.id});renderAllSales();">✕</button></td>` : '<td>-</td>'}
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="6">Aucune vente trouvée</td></tr>';
+  } catch(e){ showToast('❌ Erreur chargement des ventes'); }
+}
+
+// CLIENTS PAGE
+async function renderClients(){
+  try {
+    const clients = await api('GET','/api/clients');
+    const tbody=document.getElementById('clients-table-body');
+    tbody.innerHTML=clients.length ? clients.map(c=>`<tr>
+      <td style="font-weight:600">${c.name}</td>
+      <td>${c.phone||'-'}</td>
+      <td>${c.email||'-'}</td>
+      <td style="color:var(--muted)">${new Date(c.created_at).toLocaleDateString()}</td>
+      <td><button class="btn-sm" title="Bientôt: Consulter historique">📄</button></td>
+    </tr>`).join('') : '<tr class="empty-row"><td colspan="5">Aucun client enregistré</td></tr>';
+  } catch(e){showToast('❌ Erreur chargement clients');}
+}
+
+// STOCK ITEM CRUD
+async function saveStockItem(){
+  const id=document.getElementById('stock-id').value;
+  const ref=document.getElementById('stock-ref').value.trim();
+  const name=document.getElementById('stock-name').value.trim();
+  const category=document.getElementById('stock-category').value;
+  const qty=parseInt(document.getElementById('stock-qty').value)||0;
+  const price=parseFloat(document.getElementById('stock-price').value)||0;
+  const threshold=parseInt(document.getElementById('stock-threshold').value)||5;
+  if(!ref||!name){showToast('⚠️ Réf et Nom requis');return;}
+  try {
+    if(id){await api('PUT','/api/stock/'+id,{ref,name,category,qty,price,threshold});}
+    else {await api('POST','/api/stock',{ref,name,category,qty,price,threshold});}
+    resetStockForm();
+    renderStock();
+    showStockSub('inventory');
+    showToast('✅ Stock enregistré');
+  } catch(e){showToast('❌ '+e.message);}
+}
+
+function resetStockForm(){
+  ['stock-id','stock-ref','stock-name','stock-qty','stock-price','stock-threshold'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('stock-id').value='';
+  document.getElementById('btn-cancel-edit').style.display='none';
+}
+
+function editStockItem(id){
+  const s=stockCache.find(x=>x.id===id);
+  if(!s)return;
+  document.getElementById('stock-id').value=s.id;
+  document.getElementById('stock-ref').value=s.ref;
+  document.getElementById('stock-name').value=s.name;
+  document.getElementById('stock-category').value=s.category;
+  document.getElementById('stock-qty').value=s.qty;
+  document.getElementById('stock-price').value=s.price;
+  document.getElementById('stock-threshold').value=s.threshold;
+  document.getElementById('btn-cancel-edit').style.display='inline-block';
+  showStockSub('add');
+}
+
+// ══════════════════════════════════════════════
+// BILANS
+// ══════════════════════════════════════════════
+async function renderBilanQ(){
+  const date=document.getElementById('bq-date').value;
+  try {
+    const [entries,expenses]=await Promise.all([api('GET',`/api/entries?date=${date}`),api('GET',`/api/expenses?date=${date}`)]);
+    const totalIn=entries.reduce((s,e)=>s+e.total,0);
+    const totalOut=expenses.reduce((s,e)=>s+e.amount,0);
+    const bilan=totalIn-totalOut;
+    document.getElementById('bq-stats').innerHTML=`
+      <div class="stat-card green"><div class="stat-label">Total Entrées</div><div class="stat-value positive">${fmt(totalIn)}</div><div class="stat-unit">${entries.length} transaction(s)</div></div>
+      <div class="stat-card red"><div class="stat-label">Total Sorties</div><div class="stat-value negative">${fmt(totalOut)}</div><div class="stat-unit">${expenses.length} dépense(s)</div></div>
+      <div class="stat-card ${bilan>=0?'green':'red'}"><div class="stat-label">Résultat Net</div><div class="stat-value ${bilan>=0?'positive':'negative'}">${fmt(Math.abs(bilan))}</div><div class="stat-unit">${bilan>=0?'▲ Bénéfice':'▼ Déficit'}</div></div>
+    `;
+    document.getElementById('bq-bilan').innerHTML=`
+      <div class="bilan-item"><div class="bilan-item-label">Date</div><div class="bilan-item-value" style="font-size:13px;color:var(--text)">${fmtDate(date)}</div></div>
+      <div class="bilan-sep">—</div>
+      <div class="bilan-item"><div class="bilan-item-label">Entrées</div><div class="bilan-item-value" style="color:var(--green)">+${fmt(totalIn)}</div></div>
+      <div class="bilan-sep">−</div>
+      <div class="bilan-item"><div class="bilan-item-label">Sorties</div><div class="bilan-item-value" style="color:var(--red)">−${fmt(totalOut)}</div></div>
+      <div class="bilan-sep">=</div>
+      <div class="bilan-item"><div class="bilan-item-label">Bilan Net</div><div class="bilan-item-value" style="color:${bilan>=0?'var(--green)':'var(--red)'}">${bilan>=0?'+':''}${fmt(bilan)}</div></div>
+    `;
+    document.getElementById('bq-entries').innerHTML=entries.length?entries.map(e=>`<tr><td>${e.article}</td><td>${e.qty}</td><td>${Number(e.price).toLocaleString('fr-FR')}</td><td class="amount-positive">${fmt(e.total)}</td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Aucune entrée</td></tr>';
+    document.getElementById('bq-expenses').innerHTML=expenses.length?expenses.map(e=>`<tr><td>${e.motif}</td><td><span class="tag tag-blue">${e.category}</span></td><td class="amount-negative">${fmt(e.amount)}</td></tr>`).join(''):'<tr class="empty-row"><td colspan="3">Aucune sortie</td></tr>';
+  } catch(e){showToast('❌ Erreur bilan quotidien');}
+}
+
+async function renderBilanM(){
+  const year=document.getElementById('bm-year').value;
+  try {
+    const data=await api('GET',`/api/bilan/annual?year=${year}`);
+    document.getElementById('bm-stats').innerHTML=`
+      <div class="stat-card green"><div class="stat-label">Entrées ${year}</div><div class="stat-value positive">${fmt(data.totalIn)}</div></div>
+      <div class="stat-card red"><div class="stat-label">Sorties ${year}</div><div class="stat-value negative">${fmt(data.totalOut)}</div></div>
+      <div class="stat-card ${data.bilan>=0?'green':'red'}"><div class="stat-label">Bilan ${year}</div><div class="stat-value ${data.bilan>=0?'positive':'negative'}">${fmt(data.bilan)}</div></div>
+    `;
+    const maxVal=Math.max(...data.months.map(m=>Math.max(m.totalIn,m.totalOut)),1);
+    const selMonth=document.getElementById('bm-month').value;
+    document.getElementById('bm-grid').innerHTML=data.months.map(m=>{
+      const pct=Math.round((m.totalIn/maxVal)*100);
+      const isSelected=selMonth!==''&&parseInt(selMonth)===m.month;
+      return`<div class="month-card ${isSelected?'selected':''}" onclick="selectMonthBM(${m.month})">
+        <div class="month-card-header"><div class="month-name">${MONTHS[m.month-1]}</div><span class="tag ${m.bilan>=0?'tag-green':'tag-red'}">${m.bilan>=0?'+':''}${(m.bilan/1000).toFixed(0)}K</span></div>
+        <div class="month-rows">
+          <div class="month-row"><span class="label">Entrées</span><span style="color:var(--green)">${fmt(m.totalIn)}</span></div>
+          <div class="month-row"><span class="label">Sorties</span><span style="color:var(--red)">${fmt(m.totalOut)}</span></div>
+          <div class="month-row"><span class="label">Bilan Net</span><span style="color:${m.bilan>=0?'var(--green)':'var(--red)'};font-weight:600">${fmt(m.bilan)}</span></div>
+        </div>
+        <div class="bar-container"><div class="bar-fill" style="width:${pct}%;background:${m.bilan>=0?'var(--green)':'var(--red)'}"></div></div>
+      </div>`;
+    }).join('');
+    renderBilanMDetail();
+  } catch(e){showToast('❌ Erreur bilan mensuel');}
+}
+
+function selectMonthBM(idx){document.getElementById('bm-month').value=idx;renderBilanMDetail();renderBilanM();}
+
+async function renderBilanMDetail(){
+  const year=document.getElementById('bm-year').value;
+  const mv=document.getElementById('bm-month').value;
+  const detail=document.getElementById('bm-detail');
+  if(!mv){detail.innerHTML='';return;}
+  try {
+    const d=await api('GET',`/api/bilan/monthly?year=${year}&month=${mv}`);
+    const entries=await api('GET',`/api/entries?from=${year}-${String(mv).padStart(2,'0')}-01&to=${year}-${String(mv).padStart(2,'0')}-31`);
+    const expenses=await api('GET',`/api/expenses?from=${year}-${String(mv).padStart(2,'0')}-01&to=${year}-${String(mv).padStart(2,'0')}-31`);
+    detail.innerHTML=`
+      <div class="bilan-box">
+        <div class="bilan-item"><div class="bilan-item-label">Période</div><div class="bilan-item-value" style="font-size:13px;color:var(--text)">${MONTHS[mv-1]} ${year}</div></div>
+        <div class="bilan-sep">—</div>
+        <div class="bilan-item"><div class="bilan-item-label">Entrées</div><div class="bilan-item-value" style="color:var(--green)">+${fmt(d.totalIn)}</div></div>
+        <div class="bilan-sep">−</div>
+        <div class="bilan-item"><div class="bilan-item-label">Sorties</div><div class="bilan-item-value" style="color:var(--red)">−${fmt(d.totalOut)}</div></div>
+        <div class="bilan-sep">=</div>
+        <div class="bilan-item"><div class="bilan-item-label">Bilan Net</div><div class="bilan-item-value" style="color:${d.bilan>=0?'var(--green)':'var(--red)'}">${d.bilan>=0?'+':''}${fmt(d.bilan)}</div></div>
+      </div>
+      <div class="two-col">
+        <div class="table-card"><div class="table-header"><div class="table-header-title" style="color:var(--green)">▲ ENTRÉES — ${MONTHS[mv-1]}</div></div><div class="scrollable"><table><thead><tr><th>Date</th><th>Article</th><th>Qté</th><th>Total</th></tr></thead><tbody>${entries.length?entries.map(e=>`<tr><td style="color:var(--muted)">${e.date}</td><td>${e.article}</td><td>${e.qty}</td><td class="amount-positive">${fmt(e.total)}</td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Aucune entrée</td></tr>'}</tbody></table></div></div>
+        <div class="table-card"><div class="table-header"><div class="table-header-title" style="color:var(--red)">▼ SORTIES — ${MONTHS[mv-1]}</div></div><div class="scrollable"><table><thead><tr><th>Date</th><th>Motif</th><th>Catégorie</th><th>Montant</th></tr></thead><tbody>${expenses.length?expenses.map(e=>`<tr><td style="color:var(--muted)">${e.date}</td><td>${e.motif}</td><td><span class="tag tag-blue">${e.category}</span></td><td class="amount-negative">${fmt(e.amount)}</td></tr>`).join(''):'<tr class="empty-row"><td colspan="4">Aucune sortie</td></tr>'}</tbody></table></div></div>
+      </div>
+    `;
+  } catch(e){showToast('❌ Erreur détail mensuel');}
+}
+
+async function renderBilanA(){
+  const year=document.getElementById('ba-year').value;
+  try {
+    const data=await api('GET',`/api/bilan/annual?year=${year}`);
+    const bestMonth=data.months.reduce((b,m)=>m.bilan>b.bilan?m:b,data.months[0]);
+    document.getElementById('ba-stats').innerHTML=`
+      <div class="stat-card green"><div class="stat-label">Entrées ${year}</div><div class="stat-value positive">${fmt(data.totalIn)}</div></div>
+      <div class="stat-card red"><div class="stat-label">Sorties ${year}</div><div class="stat-value negative">${fmt(data.totalOut)}</div></div>
+      <div class="stat-card ${data.bilan>=0?'green':'red'}"><div class="stat-label">Bilan Annuel</div><div class="stat-value ${data.bilan>=0?'positive':'negative'}">${fmt(data.bilan)}</div></div>
+      <div class="stat-card orange"><div class="stat-label">Meilleur Mois</div><div class="stat-value neutral" style="font-size:15px">${MONTHS[bestMonth.month-1]}</div></div>
+    `;
+    const maxVal=Math.max(...data.months.map(m=>Math.max(m.totalIn,m.totalOut)),1);
+    document.getElementById('ba-chart').innerHTML=data.months.map(m=>{
+      const hI=Math.round((m.totalIn/maxVal)*140);
+      const hO=Math.round((m.totalOut/maxVal)*140);
+      return`<div class="chart-col"><div class="chart-bar-wrap"><div class="chart-bar income" style="height:${hI}px"></div><div class="chart-bar expense" style="height:${hO}px"></div></div><div class="chart-label">${MONTHS_S[m.month-1]}</div></div>`;
+    }).join('');
+    document.getElementById('ba-tbody').innerHTML=data.months.map(m=>`<tr><td style="font-weight:600">${MONTHS[m.month-1]}</td><td class="amount-positive">${fmt(m.totalIn)}</td><td class="amount-negative">${fmt(m.totalOut)}</td><td style="font-weight:700;color:${m.bilan>=0?'var(--green)':'var(--red)'}">${fmt(m.bilan)}</td></tr>`).join('')+`<tr style="border-top:2px solid var(--accent);background:var(--surface2)"><td style="color:var(--accent);font-size:11px;font-weight:700">TOTAL ${year}</td><td class="amount-positive" style="font-weight:700">${fmt(data.totalIn)}</td><td class="amount-negative" style="font-weight:700">${fmt(data.totalOut)}</td><td style="font-weight:700;color:${data.bilan>=0?'var(--green)':'var(--red)'}">${fmt(data.bilan)}</td></tr>`;
+  } catch(e){showToast('❌ Erreur bilan annuel');}
+}
+
+// ══════════════════════════════════════════════
+// PDF & PRINT
+// ══════════════════════════════════════════════
+function printBilan(type){
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.getElementById('page-'+type).style.display='block';
+  window.print();
+  setTimeout(()=>{
+    document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+    document.getElementById('page-'+type).style.display='block';
+  },500);
+}
+
+async function exportPDF(type){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const today=new Date().toLocaleDateString('fr-FR');
+  const W=doc.internal.pageSize.getWidth();
+  doc.setFillColor(10,14,26);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(0,212,170);doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text('INCOMS',12,13);
+  doc.setFontSize(8);doc.setTextColor(100,116,139);doc.text('GESTION COMPTABLE & STOCK',12,19);
+  doc.text('Généré le '+today,W-12,19,{align:'right'});
+  let y=34;
+
+  function box(x,xw,bh,label,value,color){
+    const cols={green:[34,197,94],red:[239,68,68],neutral:[100,116,139]};
+    const c=cols[color]||cols.neutral;
+    doc.setDrawColor(...c);doc.setLineWidth(.4);doc.roundedRect(x,y,xw,bh,2,2,'S');
+    doc.setFontSize(7);doc.setTextColor(100,116,139);doc.setFont('helvetica','normal');doc.text(label,x+3,y+5);
+    doc.setFontSize(9);doc.setTextColor(...c);doc.setFont('helvetica','bold');doc.text(value,x+xw/2,y+13,{align:'center'});
+  }
+
+  if(type==='bilan-q'){
+    const date=document.getElementById('bq-date').value;
+    const [entries,expenses]=await Promise.all([api('GET',`/api/entries?date=${date}`),api('GET',`/api/expenses?date=${date}`)]);
+    const tI=entries.reduce((s,e)=>s+e.total,0),tO=expenses.reduce((s,e)=>s+e.amount,0),b=tI-tO;
+    doc.setFontSize(13);doc.setTextColor(30,30,50);doc.setFont('helvetica','bold');doc.text('BILAN QUOTIDIEN — '+fmtDate(date).toUpperCase(),12,y);y+=9;
+    box(12,58,18,'TOTAL ENTRÉES',fmt(tI),'green');box(74,58,18,'TOTAL SORTIES',fmt(tO),'red');box(136,58,18,'BILAN NET',fmt(b),b>=0?'green':'red');y+=26;
+    if(entries.length){doc.setFontSize(10);doc.setTextColor(0,180,120);doc.text('▲ ENTRÉES',12,y);y+=3;doc.autoTable({startY:y,head:[['Article','Qté','P.U.','Total']],body:entries.map(e=>[e.article,e.qty,Number(e.price).toLocaleString('fr-FR')+' F',fmt(e.total)]),styles:{fontSize:8},headStyles:{fillColor:[0,180,120],textColor:[255,255,255]},margin:{left:12,right:12}});y=doc.lastAutoTable.finalY+8;}
+    if(expenses.length){doc.setFontSize(10);doc.setTextColor(200,50,50);doc.text('▼ SORTIES',12,y);y+=3;doc.autoTable({startY:y,head:[['Motif','Catégorie','Montant']],body:expenses.map(e=>[e.motif,e.category,fmt(e.amount)]),styles:{fontSize:8},headStyles:{fillColor:[220,60,60],textColor:[255,255,255]},margin:{left:12,right:12}});}
+  }
+  else if(type==='bilan-m'){
+    const year=document.getElementById('bm-year').value;
+    const mv=document.getElementById('bm-month').value;
+    const data=await api('GET',`/api/bilan/annual?year=${year}`);
+    doc.setFontSize(13);doc.setTextColor(30,30,50);doc.setFont('helvetica','bold');
+    if(mv){
+      const m=data.months.find(m=>m.month===parseInt(mv));
+      doc.text(`BILAN MENSUEL — ${MONTHS[mv-1].toUpperCase()} ${year}`,12,y);y+=9;
+      box(12,58,18,'ENTRÉES',fmt(m.totalIn),'green');box(74,58,18,'SORTIES',fmt(m.totalOut),'red');box(136,58,18,'BILAN',fmt(m.bilan),m.bilan>=0?'green':'red');y+=26;
+    } else {
+      doc.text(`BILAN MENSUEL — ANNÉE ${year}`,12,y);y+=9;
+      box(12,58,18,'ENTRÉES',fmt(data.totalIn),'green');box(74,58,18,'SORTIES',fmt(data.totalOut),'red');box(136,58,18,'BILAN',fmt(data.bilan),data.bilan>=0?'green':'red');y+=26;
+    }
+    doc.autoTable({startY:y,head:[['Mois','Entrées','Sorties','Bilan Net']],body:data.months.map(m=>[MONTHS[m.month-1],fmt(m.totalIn),fmt(m.totalOut),fmt(m.bilan)]),styles:{fontSize:8},headStyles:{fillColor:[0,212,170],textColor:[10,14,26],fontStyle:'bold'},margin:{left:12,right:12}});
+  }
+  else if(type==='bilan-a'){
+    const year=document.getElementById('ba-year').value;
+    const data=await api('GET',`/api/bilan/annual?year=${year}`);
+    doc.setFontSize(13);doc.setTextColor(30,30,50);doc.setFont('helvetica','bold');doc.text(`BILAN ANNUEL — ${year}`,12,y);y+=9;
+    box(12,58,18,'ENTRÉES TOTALES',fmt(data.totalIn),'green');box(74,58,18,'SORTIES TOTALES',fmt(data.totalOut),'red');box(136,58,18,'BILAN NET',fmt(data.bilan),data.bilan>=0?'green':'red');y+=26;
+    doc.autoTable({startY:y,head:[['Mois','Entrées','Sorties','Bilan Net']],body:[...data.months.map(m=>[MONTHS[m.month-1],fmt(m.totalIn),fmt(m.totalOut),fmt(m.bilan)]),['TOTAL '+year,fmt(data.totalIn),fmt(data.totalOut),fmt(data.bilan)]],styles:{fontSize:8},headStyles:{fillColor:[0,212,170],textColor:[10,14,26],fontStyle:'bold'},margin:{left:12,right:12}});
+  }
+
+  const pc=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(150,150,150);doc.text('INCOMS — Document confidentiel',12,doc.internal.pageSize.getHeight()-8);doc.text(`Page ${i}/${pc}`,W-12,doc.internal.pageSize.getHeight()-8,{align:'right'});}
+  doc.save(`INCOMS_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+  showToast('📄 PDF généré');
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// Auto-login si token en session
+(async function(){
+  if(authToken){
+    try{
+      // Vérifier token
+      const payload=JSON.parse(atob(authToken.split('.')[1]));
+      if(payload.exp*1000>Date.now()){
+        currentUser={username:payload.username,role:payload.role};
+        document.getElementById('login-screen').style.display='none';
+        document.getElementById('app').style.display='block';
+        document.getElementById('user-name-display').textContent=payload.username.toUpperCase();
+        if(payload.role==='admin'){document.getElementById('admin-badge').style.display='inline';document.getElementById('btn-settings').style.display='inline';}
+        document.querySelectorAll('.admin-only').forEach(el=>el.style.display=payload.role==='admin'?'flex':'none');
+        initApp();
+      } else {doLogout();}
+    } catch{doLogout();}
+  }
+})();
+</script>
+</body>
+</html>
