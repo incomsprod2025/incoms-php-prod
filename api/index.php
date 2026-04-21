@@ -2,8 +2,8 @@
 // Router central pour Vercel
 $request_uri = $_SERVER['REQUEST_URI'] ?? '/';
 
-// Si la requête commence par /api/, on charge le backend
-if (strpos($request_uri, '/api/') === 0) {
+// Si la requête semble être une requête API (préfixe /api/, /backend-php/ ou paramètre route=)
+if (strpos($request_uri, '/api/') !== false || strpos($request_uri, '/backend-php/') !== false || isset($_GET['route'])) {
     require_once __DIR__ . '/../backend-php/api.php';
 } else {
     // Sinon, on sert le frontend
